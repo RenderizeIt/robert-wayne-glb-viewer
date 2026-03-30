@@ -338,21 +338,28 @@
 
         modelRoot.position.sub(center);
         modelRoot.position.y += size.y * 0.5;
+		const scaleMultiplier = 100;
+		modelRoot.scale.setScalar(scaleMultiplier);
         scene.add(modelRoot);
 
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const fitDistance = maxDim * 1.65;
+		// Recalculate bounds after scaling
+		const scaledBox = new THREE.Box3().setFromObject(modelRoot);
+		const scaledSize = scaledBox.getSize(new THREE.Vector3());
+		const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
 
-        camera.position.set(fitDistance * 0.72, maxDim * 0.55, fitDistance);
-        controls.target.set(0, size.y * 0.45, 0);
-        controls.update();
+		// Re-center after scale
+		modelRoot.position.sub(scaledCenter);
+		modelRoot.position.y += scaledSize.y * 0.5;
 
-        defaultCameraPosition = camera.position.clone();
-        defaultTarget = controls.target.clone();
+		const maxDim = Math.max(scaledSize.x, scaledSize.y, scaledSize.z);
+		const fitDistance = maxDim * 1.65;
 
-        loadingStatus.textContent = 'Loaded';
-        progressBar.style.width = '100%';
-        loadingOverlay.classList.add('is-hidden');
+		camera.position.set(fitDistance * 0.72, maxDim * 0.55, fitDistance);
+		controls.target.set(0, scaledSize.y * 0.45, 0);
+		controls.update();
+
+		defaultCameraPosition = camera.position.clone();
+		defaultTarget = controls.target.clone();
       },
       (event) => {
         if (event.total) {
