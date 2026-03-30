@@ -374,8 +374,11 @@
         modelRoot.position.sub(center);
         modelRoot.position.y += size.y * 0.5;
 
-        const scaleMultiplier = 10;
-        modelRoot.scale.setScalar(scaleMultiplier);
+        const desiredSize = 2.0;
+		const currentMax = Math.max(size.x, size.y, size.z);
+		const scaleMultiplier = desiredSize / currentMax;
+
+		modelRoot.scale.setScalar(scaleMultiplier);
 
         scene.add(modelRoot);
 
