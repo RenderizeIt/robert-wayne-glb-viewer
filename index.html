@@ -333,17 +333,34 @@
       (gltf) => {
         modelRoot = gltf.scene;
 
-        modelRoot.traverse((child) => {
-          if (child.isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
+		   modelRoot.traverse((child) => {
+	  if (child.isMesh) {
+		child.castShadow = true;
+		child.receiveShadow = true;
 
-            if (child.material) {
-              child.material.envMapIntensity = 1.5;
-              child.material.needsUpdate = true;
-            }
-          }
-        });
+		const materials = Array.isArray(child.material)
+		  ? child.material
+		  : [child.material];
+
+		materials.forEach((mat) => {
+		  if (!mat) return;
+
+		  // 🔥 Kill opacity / alpha issues
+		  mat.transparent = false;
+		  mat.opacity = 1;
+		  mat.alphaMap = null;
+		  mat.alphaTest = 0;
+
+		  // 🔥 Fix depth issues
+		  mat.depthWrite = true;
+
+		  // 🔥 Boost reflections slightly
+		  mat.envMapIntensity = 1.5;
+
+		  mat.needsUpdate = true;
+		});
+	  }
+	});
 
         const box = new THREE.Box3().setFromObject(modelRoot);
         const size = box.getSize(new THREE.Vector3());
