@@ -6,7 +6,6 @@
   <title>Renderize It - Robert Wayne Viewer</title>
   <style>
     :root {
-      --bg: #0f0f10;
       --panel: rgba(20, 20, 22, 0.82);
       --panel-border: rgba(255, 255, 255, 0.1);
       --text: #f4f4f2;
@@ -57,7 +56,7 @@
       border-radius: 16px;
       backdrop-filter: blur(10px);
       box-shadow: var(--shadow);
-      max-width: 320px;
+      max-width: 360px;
     }
 
     .brand__eyebrow {
@@ -97,7 +96,7 @@
       backdrop-filter: blur(10px);
       box-shadow: var(--shadow);
       flex-wrap: wrap;
-      max-width: min(92vw, 540px);
+      max-width: min(92vw, 560px);
     }
 
     button {
@@ -110,7 +109,7 @@
       font-size: 13px;
       font-weight: 700;
       cursor: pointer;
-      transition: transform 0.15s ease, opacity 0.15s ease;
+      transition: transform 0.15s ease;
     }
 
     button:hover {
@@ -250,8 +249,10 @@
     import * as THREE from 'three';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
     const MODEL_URL = './model/robert-wayne-boot.glb';
+    const HDR_URL = './hdr/studio.hdr';
 
     const container = document.getElementById('viewer');
     const loadingOverlay = document.getElementById('loadingOverlay');
@@ -268,57 +269,28 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.8;
+    renderer.toneMappingExposure = 1.2;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
     const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.set(2.4, 1.2, 3.3);
+    camera.position.set(2.2, 1.2, 3.2);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
+    controls.enablePan = false;
     controls.minDistance = 1.4;
     controls.maxDistance = 7;
-    controls.enablePan = false;
     controls.target.set(0, 0.55, 0);
     controls.autoRotate = false;
-    controls.autoRotateSpeed = 1.4;
+    controls.autoRotateSpeed = 1.2;
 
-    const ambient = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
-    scene.add(ambient);
-
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
-    keyLight.position.set(2.5, 6.5, 2.2);
-    keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width = 2048;
-    keyLight.shadow.mapSize.height = 2048;
-    keyLight.shadow.camera.near = 0.5;
-    keyLight.shadow.camera.far = 20;
-    keyLight.shadow.camera.left = -4;
-    keyLight.shadow.camera.right = 4;
-    keyLight.shadow.camera.top = 4;
-    keyLight.shadow.camera.bottom = -4;
-	keyLight.shadow.radius = 8;
-	keyLight.shadow.blurSamples = 16;
-    scene.add(keyLight);
-
-    const rimLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    rimLight.position.set(-3.5, 2.2, -4);
-    scene.add(rimLight);
-
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.7);
-    fillLight.position.set(-2, 1.5, 3);
-    scene.add(fillLight);
-
-    const frontLight = new THREE.DirectionalLight(0xffffff, 0.9);
-    frontLight.position.set(0, 2, 5);
-    scene.add(frontLight);
-
+    // Soft floor shadow catcher
     const floor = new THREE.Mesh(
       new THREE.CircleGeometry(6, 96),
-      new THREE.ShadowMaterial({ opacity: 0.10 })
+      new THREE.ShadowMaterial({ opacity: 0.08 })
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.001;
@@ -329,51 +301,80 @@
     let defaultCameraPosition = camera.position.clone();
     let defaultTarget = controls.target.clone();
 
-    const loader = new GLTFLoader();
-    loader.load(
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    pmremGenerator.compileEquirectangularShader();
+
+    const rgbeLoader = new RGBELoader();
+    const gltfLoader = new GLTFLoader();
+
+    let hdriLoaded = false;
+    let modelLoaded = false;
+
+    function tryHideLoader() {
+      if (hdriLoaded && modelLoaded) {
+        loadingStatus.textContent = 'Loaded';
+        progressBar.style.width = '100%';
+        loadingOverlay.classList.add('is-hidden');
+      }
+    }
+
+    // Load HDRI
+    rgbeLoader.load(
+      HDR_URL,
+      (hdrTexture) => {
+        const envMap = pmremGenerator.fromEquirectangular(hdrTexture).texture;
+        scene.environment = envMap;
+
+        hdrTexture.dispose();
+        pmremGenerator.dispose();
+
+        hdriLoaded = true;
+        tryHideLoader();
+      },
+      undefined,
+      (error) => {
+        console.error('Error loading HDRI:', error);
+        loadingStatus.textContent = 'Could not load HDRI. Check the file path and browser console.';
+      }
+    );
+
+    // Load model
+    gltfLoader.load(
       MODEL_URL,
       (gltf) => {
         modelRoot = gltf.scene;
 
-		   modelRoot.traverse((child) => {
-	  if (child.isMesh) {
-		child.castShadow = true;
-		child.receiveShadow = true;
+        modelRoot.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
 
-		const materials = Array.isArray(child.material)
-		  ? child.material
-		  : [child.material];
+            const materials = Array.isArray(child.material)
+              ? child.material
+              : [child.material];
 
-		materials.forEach((mat) => {
-		  if (!mat) return;
+            materials.forEach((mat) => {
+              if (!mat) return;
 
-		  // 🔥 Kill opacity / alpha issues
-		  mat.transparent = false;
-		  mat.opacity = 1;
-		  mat.alphaMap = null;
-		  mat.alphaTest = 0;
-
-		  // 🔥 Fix depth issues
-		  mat.depthWrite = true;
-
-		  // 🔥 Boost reflections slightly
-		  mat.envMapIntensity = 1.1;
-
-		  mat.needsUpdate = true;
-		});
-	  }
-	});
+              mat.transparent = false;
+              mat.opacity = 1;
+              mat.alphaMap = null;
+              mat.alphaTest = 0;
+              mat.depthWrite = true;
+              mat.envMapIntensity = 1.35;
+              mat.needsUpdate = true;
+            });
+          }
+        });
 
         const box = new THREE.Box3().setFromObject(modelRoot);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
 
-        console.log('Original size:', size);
-
         modelRoot.position.sub(center);
         modelRoot.position.y += size.y * 0.5;
 
-        const scaleMultiplier = 75;
+        const scaleMultiplier = 10;
         modelRoot.scale.setScalar(scaleMultiplier);
 
         scene.add(modelRoot);
@@ -388,16 +389,15 @@
         const maxDim = Math.max(scaledSize.x, scaledSize.y, scaledSize.z);
         const fitDistance = maxDim * 1.65;
 
-        camera.position.set(fitDistance * 0.72, maxDim * 0.55, fitDistance);
-        controls.target.set(0, scaledSize.y * 0.45, 0);
+        camera.position.set(fitDistance * 0.72, maxDim * 0.5, fitDistance);
+        controls.target.set(0, scaledSize.y * 0.42, 0);
         controls.update();
 
         defaultCameraPosition = camera.position.clone();
         defaultTarget = controls.target.clone();
 
-        loadingStatus.textContent = 'Loaded';
-        progressBar.style.width = '100%';
-        loadingOverlay.classList.add('is-hidden');
+        modelLoaded = true;
+        tryHideLoader();
       },
       (event) => {
         if (event.total) {
