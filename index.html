@@ -16,7 +16,9 @@
       --shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     html, body {
       margin: 0;
@@ -111,8 +113,13 @@
       transition: transform 0.15s ease, opacity 0.15s ease;
     }
 
-    button:hover { transform: translateY(-1px); }
-    button:active { transform: translateY(0); }
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
 
     .hint {
       font-size: 12px;
@@ -202,7 +209,6 @@
     }
   </style>
 
-
   <script type="importmap">
     {
       "imports": {
@@ -232,7 +238,9 @@
       <div class="loading__card">
         <h2 class="loading__title">Loading Product Viewer</h2>
         <p class="loading__copy">Preparing the Robert Wayne boot for real-time viewing.</p>
-        <div class="progress"><div class="progress__bar" id="progressBar"></div></div>
+        <div class="progress">
+          <div class="progress__bar" id="progressBar"></div>
+        </div>
         <div class="status" id="loadingStatus">Starting...</div>
       </div>
     </div>
@@ -260,7 +268,7 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
+    renderer.toneMappingExposure = 2.2;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
@@ -278,10 +286,10 @@
     controls.autoRotate = false;
     controls.autoRotateSpeed = 1.4;
 
-    const ambient = new THREE.HemisphereLight(0xffffff, 0x404040, 1.25);
+    const ambient = new THREE.HemisphereLight(0xffffff, 0x444444, 2.2);
     scene.add(ambient);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.25);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 4.0);
     keyLight.position.set(4, 5, 4);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 2048;
@@ -301,6 +309,10 @@
     const fillLight = new THREE.DirectionalLight(0xffffff, 0.7);
     fillLight.position.set(-2, 1.5, 3);
     scene.add(fillLight);
+
+    const frontLight = new THREE.DirectionalLight(0xffffff, 2.5);
+    frontLight.position.set(0, 2, 5);
+    scene.add(frontLight);
 
     const floor = new THREE.Mesh(
       new THREE.CircleGeometry(6, 96),
@@ -327,6 +339,7 @@
             child.receiveShadow = true;
 
             if (child.material) {
+              child.material.envMapIntensity = 1.5;
               child.material.needsUpdate = true;
             }
           }
@@ -336,36 +349,42 @@
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
 
+        console.log('Original size:', size);
+
         modelRoot.position.sub(center);
         modelRoot.position.y += size.y * 0.5;
-		const scaleMultiplier = 10;
-		modelRoot.scale.setScalar(scaleMultiplier);
+
+        const scaleMultiplier = 10;
+        modelRoot.scale.setScalar(scaleMultiplier);
+
         scene.add(modelRoot);
 
-		// Recalculate bounds after scaling
-		const scaledBox = new THREE.Box3().setFromObject(modelRoot);
-		const scaledSize = scaledBox.getSize(new THREE.Vector3());
-		const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+        const scaledBox = new THREE.Box3().setFromObject(modelRoot);
+        const scaledSize = scaledBox.getSize(new THREE.Vector3());
+        const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
 
-		// Re-center after scale
-		modelRoot.position.sub(scaledCenter);
-		modelRoot.position.y += scaledSize.y * 0.5;
+        modelRoot.position.sub(scaledCenter);
+        modelRoot.position.y += scaledSize.y * 0.5;
 
-		const maxDim = Math.max(scaledSize.x, scaledSize.y, scaledSize.z);
-		const fitDistance = maxDim * 1.65;
+        const maxDim = Math.max(scaledSize.x, scaledSize.y, scaledSize.z);
+        const fitDistance = maxDim * 1.65;
 
-		camera.position.set(fitDistance * 0.72, maxDim * 0.55, fitDistance);
-		controls.target.set(0, scaledSize.y * 0.45, 0);
-		controls.update();
+        camera.position.set(fitDistance * 0.72, maxDim * 0.55, fitDistance);
+        controls.target.set(0, scaledSize.y * 0.45, 0);
+        controls.update();
 
-		defaultCameraPosition = camera.position.clone();
-		defaultTarget = controls.target.clone();
+        defaultCameraPosition = camera.position.clone();
+        defaultTarget = controls.target.clone();
+
+        loadingStatus.textContent = 'Loaded';
+        progressBar.style.width = '100%';
+        loadingOverlay.classList.add('is-hidden');
       },
       (event) => {
         if (event.total) {
-		const percent = event.total ? Math.min((event.loaded / event.total) * 100, 100) : 0;
-		progressBar.style.width = `${percent.toFixed(1)}%`;
-		loadingStatus.textContent = `Loading ${percent.toFixed(0)}%`;
+          const percent = Math.min((event.loaded / event.total) * 100, 100);
+          progressBar.style.width = `${percent.toFixed(1)}%`;
+          loadingStatus.textContent = `Loading ${percent.toFixed(0)}%`;
         } else {
           loadingStatus.textContent = 'Loading model...';
         }
@@ -395,12 +414,12 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    const clock = new THREE.Clock();
     function animate() {
       requestAnimationFrame(animate);
-      controls.update(clock.getDelta());
+      controls.update();
       renderer.render(scene, camera);
     }
+
     animate();
   </script>
 </body>
