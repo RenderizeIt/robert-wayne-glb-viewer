@@ -268,7 +268,7 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 2;
+    renderer.toneMappingExposure = 1.4;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
@@ -289,8 +289,8 @@
     const ambient = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
     scene.add(ambient);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
-    keyLight.position.set(4, 5, 4);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
+    keyLight.position.set(2.5, 6.5, 2.2);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 2048;
     keyLight.shadow.mapSize.height = 2048;
@@ -300,6 +300,8 @@
     keyLight.shadow.camera.right = 4;
     keyLight.shadow.camera.top = 4;
     keyLight.shadow.camera.bottom = -4;
+	keyLight.shadow.radius = 8;
+	keyLight.shadow.blurSamples = 16;
     scene.add(keyLight);
 
     const rimLight = new THREE.DirectionalLight(0xffffff, 1.2);
@@ -310,13 +312,13 @@
     fillLight.position.set(-2, 1.5, 3);
     scene.add(fillLight);
 
-    const frontLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    const frontLight = new THREE.DirectionalLight(0xffffff, 0.9);
     frontLight.position.set(0, 2, 5);
     scene.add(frontLight);
 
     const floor = new THREE.Mesh(
       new THREE.CircleGeometry(6, 96),
-      new THREE.ShadowMaterial({ opacity: 0.18 })
+      new THREE.ShadowMaterial({ opacity: 0.10 })
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.001;
