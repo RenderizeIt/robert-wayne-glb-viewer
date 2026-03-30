@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Renderize It - Robert Wayne Viewer</title>
+  <style>
+    :root {
+      --bg: #0f0f10;
+      --panel: rgba(20, 20, 22, 0.82);
+      --panel-border: rgba(255, 255, 255, 0.1);
+      --text: #f4f4f2;
+      --muted: rgba(244, 244, 242, 0.68);
+      --button-bg: #f4f4f2;
+      --button-text: #111111;
+      --shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at top, #1a1b1f 0%, #0f0f10 55%, #0a0a0b 100%);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    #viewer {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+
+    #viewer:active {
+      cursor: grabbing;
+    }
+
+    .brand {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 10;
+      padding: 14px 16px;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+      max-width: 320px;
+    }
+
+    .brand__eyebrow {
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .brand__title {
+      font-size: 20px;
+      line-height: 1.15;
+      font-weight: 700;
+      margin: 0 0 8px 0;
+    }
+
+    .brand__meta {
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    .controls-panel {
+      position: absolute;
+      right: 20px;
+      bottom: 20px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+      flex-wrap: wrap;
+      max-width: min(92vw, 540px);
+    }
+
+    button {
+      appearance: none;
+      border: none;
+      border-radius: 999px;
+      background: var(--button-bg);
+      color: var(--button-text);
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+
+    .hint {
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--muted);
+      padding: 0 4px;
+    }
+
+    .loading {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      z-index: 20;
+      background: linear-gradient(180deg, rgba(15,15,16,0.95), rgba(10,10,11,0.95));
+      transition: opacity 0.35s ease, visibility 0.35s ease;
+    }
+
+    .loading.is-hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .loading__card {
+      width: min(90vw, 360px);
+      padding: 22px 20px;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .loading__title {
+      margin: 0 0 10px 0;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .loading__copy {
+      margin: 0 0 14px 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .progress {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+    }
+
+    .progress__bar {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #ffffff 0%, #b8b8b8 100%);
+      transition: width 0.2s ease;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 720px) {
+      .brand {
+        top: 14px;
+        left: 14px;
+        right: 14px;
+        max-width: none;
+      }
+
+      .controls-panel {
+        left: 14px;
+        right: 14px;
+        bottom: 14px;
+      }
+
+      .brand__title {
+        font-size: 18px;
+      }
+    }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.180.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.180.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <div id="viewer"></div>
+
+    <div class="brand">
+      <div class="brand__eyebrow">Renderize It</div>
+      <h1 class="brand__title">Robert Wayne - Interactive Product Viewer</h1>
+      <p class="brand__meta">Real-time GLB viewer for product presentation, review, and client-facing interaction.</p>
+    </div>
+
+    <div class="controls-panel">
+      <button id="resetViewBtn" type="button">Reset View</button>
+      <button id="toggleRotateBtn" type="button">Auto Rotate: Off</button>
+      <div class="hint">Click and drag to rotate. Scroll to zoom.</div>
+    </div>
+
+    <div class="loading" id="loadingOverlay">
+      <div class="loading__card">
+        <h2 class="loading__title">Loading Product Viewer</h2>
+        <p class="loading__copy">Preparing the Robert Wayne boot for real-time viewing.</p>
+        <div class="progress"><div class="progress__bar" id="progressBar"></div></div>
+        <div class="status" id="loadingStatus">Starting...</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    const MODEL_URL = './model/robert-wayne-boot.glb';
+
+    const container = document.getElementById('viewer');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const progressBar = document.getElementById('progressBar');
+    const loadingStatus = document.getElementById('loadingStatus');
+    const resetViewBtn = document.getElementById('resetViewBtn');
+    const toggleRotateBtn = document.getElementById('toggleRotateBtn');
+
+    const scene = new THREE.Scene();
+    scene.background = null;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.08;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(2.4, 1.2, 3.3);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.minDistance = 1.4;
+    controls.maxDistance = 7;
+    controls.enablePan = false;
+    controls.target.set(0, 0.55, 0);
+    controls.autoRotate = false;
+    controls.autoRotateSpeed = 1.4;
+
+    const ambient = new THREE.HemisphereLight(0xffffff, 0x404040, 1.25);
+    scene.add(ambient);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.25);
+    keyLight.position.set(4, 5, 4);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 2048;
+    keyLight.shadow.mapSize.height = 2048;
+    keyLight.shadow.camera.near = 0.5;
+    keyLight.shadow.camera.far = 20;
+    keyLight.shadow.camera.left = -4;
+    keyLight.shadow.camera.right = 4;
+    keyLight.shadow.camera.top = 4;
+    keyLight.shadow.camera.bottom = -4;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    rimLight.position.set(-3.5, 2.2, -4);
+    scene.add(rimLight);
+
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    fillLight.position.set(-2, 1.5, 3);
+    scene.add(fillLight);
+
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(6, 96),
+      new THREE.ShadowMaterial({ opacity: 0.18 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.001;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    let modelRoot = null;
+    let defaultCameraPosition = camera.position.clone();
+    let defaultTarget = controls.target.clone();
+
+    const loader = new GLTFLoader();
+    loader.load(
+      MODEL_URL,
+      (gltf) => {
+        modelRoot = gltf.scene;
+
+        modelRoot.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+
+            if (child.material) {
+              child.material.needsUpdate = true;
+            }
+          }
+        });
+
+        const box = new THREE.Box3().setFromObject(modelRoot);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+
+        modelRoot.position.sub(center);
+        modelRoot.position.y += size.y * 0.5;
+        scene.add(modelRoot);
+
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const fitDistance = maxDim * 1.65;
+
+        camera.position.set(fitDistance * 0.72, maxDim * 0.55, fitDistance);
+        controls.target.set(0, size.y * 0.45, 0);
+        controls.update();
+
+        defaultCameraPosition = camera.position.clone();
+        defaultTarget = controls.target.clone();
+
+        loadingStatus.textContent = 'Loaded';
+        progressBar.style.width = '100%';
+        loadingOverlay.classList.add('is-hidden');
+      },
+      (event) => {
+        if (event.total) {
+          const percent = (event.loaded / event.total) * 100;
+          progressBar.style.width = `${percent.toFixed(1)}%`;
+          loadingStatus.textContent = `Loading ${percent.toFixed(0)}%`;
+        } else {
+          loadingStatus.textContent = 'Loading model...';
+        }
+      },
+      (error) => {
+        console.error('Error loading GLB:', error);
+        loadingStatus.textContent = 'Could not load the model. Check the file path and browser console.';
+      }
+    );
+
+    resetViewBtn.addEventListener('click', () => {
+      camera.position.copy(defaultCameraPosition);
+      controls.target.copy(defaultTarget);
+      controls.autoRotate = false;
+      toggleRotateBtn.textContent = 'Auto Rotate: Off';
+      controls.update();
+    });
+
+    toggleRotateBtn.addEventListener('click', () => {
+      controls.autoRotate = !controls.autoRotate;
+      toggleRotateBtn.textContent = `Auto Rotate: ${controls.autoRotate ? 'On' : 'Off'}`;
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update(clock.getDelta());
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
