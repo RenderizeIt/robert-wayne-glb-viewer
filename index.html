@@ -269,7 +269,7 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMappingExposure = 0.8;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
@@ -290,7 +290,7 @@
     // Soft floor shadow catcher
     const floor = new THREE.Mesh(
       new THREE.CircleGeometry(6, 96),
-      new THREE.ShadowMaterial({ opacity: 0.08 })
+      new THREE.ShadowMaterial({ opacity: 0.12 })
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.001;
@@ -361,7 +361,7 @@
               mat.alphaMap = null;
               mat.alphaTest = 0;
               mat.depthWrite = true;
-              mat.envMapIntensity = 1.35;
+              mat.envMapIntensity = 1.25;
               mat.needsUpdate = true;
             });
           }
